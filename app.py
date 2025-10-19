@@ -3,14 +3,18 @@ import cv2
 import threading
 import time
 import json
+import numpy as np
 from flask import Flask, render_template, Response
 
 # --- Game State Variables ---
 game_state = {
-    "status": "GREEN",  # GREEN, RED, GAME_OVER
-    "timer": 0,
+    "mode": "GREEN",
+    "total_time": 180,
+    "interval_timer": 20,
+    "penalty_flash": False, # To signal a penalty to the frontend
 }
 state_lock = threading.Lock()
+
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -18,40 +22,35 @@ app = Flask(__name__)
 # --- Background Thread for Game Logic ---
 def game_logic_thread():
     """
-    Manages the game state (GREEN/RED) and timers in a background thread.
+    Manages the game state (GREEN/RED/GAME_OVER) and timers in a background thread.
     """
     global game_state
-    green_duration = 5  # seconds
-    red_duration = 4    # seconds
+    interval_duration = 20  # 20 seconds for both GREEN and RED
 
     while True:
-        # --- GREEN STATE ---
+        time.sleep(1)
         with state_lock:
-            game_state["status"] = "GREEN"
-            game_state["timer"] = green_duration
-        
-        for i in range(green_duration):
-            time.sleep(1)
-            with state_lock:
-                game_state["timer"] -= 1
-
-        # --- RED STATE ---
-        with state_lock:
-            # If already GAME_OVER, wait before restarting
-            if game_state["status"] == "GAME_OVER":
-                game_state["timer"] = 5
-                time.sleep(5)
+            # If game is over, do nothing
+            if game_state["mode"] == "GAME_OVER":
                 continue
 
-            game_state["status"] = "RED"
-            game_state["timer"] = red_duration
+            # Decrement timers
+            game_state["total_time"] -= 1
+            game_state["interval_timer"] -= 1
 
-        for i in range(red_duration):
-            time.sleep(1)
-            with state_lock:
-                if game_state["status"] == "GAME_OVER":
-                    break # Exit timer loop if game is over
-                game_state["timer"] -= 1
+            # Check for game over
+            if game_state["total_time"] <= 0:
+                game_state["mode"] = "GAME_OVER"
+                game_state["total_time"] = 0
+                continue
+
+            # Check for state transition
+            if game_state["interval_timer"] <= 0:
+                if game_state["mode"] == "GREEN":
+                    game_state["mode"] = "RED"
+                elif game_state["mode"] == "RED":
+                    game_state["mode"] = "GREEN"
+                game_state["interval_timer"] = interval_duration
 
 
 # --- Video Streaming and Motion Detection ---
@@ -59,69 +58,79 @@ def generate_frames():
     """
     Captures frames from the camera, performs motion detection,
     and yields frames as a multipart HTTP response.
+    Handles camera errors gracefully by providing a fallback stream.
     """
-    global game_state
+    global game_state, penalty_applied_in_frame
     camera = cv2.VideoCapture(0)
-    if not camera.isOpened():
-        raise RuntimeError("Could not start camera.")
+    camera_opened = camera.isOpened()
+    if not camera_opened:
+        print("Warning: Could not start camera. Displaying a black screen instead.")
 
     previous_frame = None
-    motion_threshold = 5000 # Adjust this value based on sensitivity
+    motion_threshold = 1000
 
     while True:
+        if not camera_opened:
+            # Create a black frame with an error message if camera is not available
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.putText(frame, "Camera not available", (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            (flag, encodedImage) = cv2.imencode(".jpg", frame)
+            if flag:
+                yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
+                      bytearray(encodedImage) + b'\r\n')
+            time.sleep(0.1) # Limit frame rate
+            continue
+
         success, frame = camera.read()
         if not success:
             break
 
-        # Motion Detection Logic
         with state_lock:
-            current_status = game_state["status"]
+            current_mode = game_state["mode"]
+            game_state["penalty_flash"] = False # Reset flash at the start of a new frame
 
-        if current_status == "RED":
+        if current_mode == "RED":
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
             if previous_frame is None:
                 previous_frame = gray
+                time.sleep(0.1)
                 continue
 
             frame_delta = cv2.absdiff(previous_frame, gray)
-            thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
+            thresh = cv2.threshold(frame_delta, 30, 255, cv2.THRESH_BINARY)[1]
             thresh = cv2.dilate(thresh, None, iterations=2)
-            
+
             contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            motion_detected = False
-            for contour in contours:
-                if cv2.contourArea(contour) > motion_threshold:
-                    motion_detected = True
-                    break
-            
+
+            motion_detected = any(cv2.contourArea(c) > motion_threshold for c in contours)
+
             if motion_detected:
                 with state_lock:
-                    game_state["status"] = "GAME_OVER"
+                    if game_state["total_time"] > 0:
+                        game_state["total_time"] = max(0, game_state["total_time"] - 5)
+                        game_state["penalty_flash"] = True
             
             previous_frame = gray
         else:
-            # Reset previous_frame when not in RED state
             previous_frame = None
 
         # Draw status on the frame
         with state_lock:
-            display_status = game_state["status"]
-            display_timer = game_state["timer"]
-        
-        color = {"GREEN": (0, 255, 0), "RED": (0, 0, 255), "GAME_OVER": (0, 255, 255)}[display_status]
-        cv2.putText(frame, f"STATUS: {display_status}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-        cv2.putText(frame, f"TIMER: {display_timer}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+            display_mode = game_state["mode"]
+            display_total_time = game_state["total_time"]
+            display_interval_timer = game_state["interval_timer"]
 
+        color = {"GREEN": (0, 255, 0), "RED": (0, 0, 255), "GAME_OVER": (0, 255, 255)}.get(display_mode, (255, 255, 255))
+        cv2.putText(frame, f"MODE: {display_mode}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        cv2.putText(frame, f"TOTAL TIME: {display_total_time}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+        cv2.putText(frame, f"INTERVAL: {display_interval_timer}", (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
-        # Encode the frame in JPEG format
         (flag, encodedImage) = cv2.imencode(".jpg", frame)
         if not flag:
             continue
 
-        # Yield the output frame in the byte format
         yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
               bytearray(encodedImage) + b'\r\n')
 
@@ -143,6 +152,19 @@ def get_gamestate():
     with state_lock:
         return json.dumps(game_state)
 
+@app.route('/api/restart', methods=['POST'])
+def restart_game():
+    """API to reset the game state."""
+    global game_state
+    with state_lock:
+        game_state = {
+            "mode": "GREEN",
+            "total_time": 180,
+            "interval_timer": 20,
+            "penalty_flash": False,
+        }
+    return json.dumps(game_state)
+
 # --- Main Execution ---
 if __name__ == '__main__':
     # Start the game logic thread
@@ -151,5 +173,4 @@ if __name__ == '__main__':
     logic_thread.start()
     
     # Run the Flask app
-    # Use threaded=True to handle multiple concurrent requests
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)

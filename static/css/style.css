@@ -54,3 +54,20 @@ img {
 .game-over-bg {
     background-color: #e5e7eb; /* Light Gray */
 }
+
+/* Penalty Flash Animation */
+.penalty-flash {
+    animation: flash-red 0.5s ease-out;
+}
+
+@keyframes flash-red {
+    0% {
+        background-color: #fecaca; /* Light Red */
+    }
+    50% {
+        background-color: #dc2626; /* Strong Red */
+    }
+    100% {
+        background-color: #fecaca; /* Back to Light Red */
+    }
+}
