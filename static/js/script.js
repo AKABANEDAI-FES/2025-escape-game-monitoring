@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const gameOverMessage = document.getElementById('game-over-message');
     const gameOverText = gameOverMessage.querySelector('p'); // The paragraph inside the message div
     const restartButton = document.getElementById('restart-button');
+    const penaltyText = document.getElementById('penalty-text');
     const body = document.body;
 
     // Restart button logic
@@ -52,10 +53,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Handle penalty flash
             if (state.penalty_flash) {
                 body.classList.add('penalty-flash');
+                penaltyText.classList.add('show');
+
                 // Remove the class after the animation completes
                 setTimeout(() => {
                     body.classList.remove('penalty-flash');
-                }, 500); // Corresponds to animation duration
+                    penaltyText.classList.remove('show');
+                }, 1000); // Corresponds to the longer animation duration
             }
 
         } catch (error) {
