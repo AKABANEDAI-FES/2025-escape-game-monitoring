@@ -1,0 +1,56 @@
+body {
+    font-family: sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+    transition: background-color 0.5s ease;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: #333;
+}
+
+#status-box {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+}
+
+.video-container {
+    border: 5px solid #333;
+    display: inline-block;
+    line-height: 0; /* Removes extra space below the image */
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+#game-over-message {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: rgba(255, 255, 0, 0.8);
+    border-radius: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Background Colors */
+.green-bg {
+    background-color: #a7f3d0; /* Light Green */
+}
+
+.red-bg {
+    background-color: #fecaca; /* Light Red */
+}
+
+.game-over-bg {
+    background-color: #e5e7eb; /* Light Gray */
+}
