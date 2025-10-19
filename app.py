@@ -11,7 +11,8 @@ game_state = {
     "mode": "GREEN",
     "total_time": 180,
     "interval_timer": 20,
-    "penalty_flash": False, # To signal a penalty to the frontend
+    "penalty_flash": False,
+    "last_penalty_time": 0, # To manage penalty interval
 }
 state_lock = threading.Lock()
 
@@ -87,7 +88,6 @@ def generate_frames():
 
         with state_lock:
             current_mode = game_state["mode"]
-            game_state["penalty_flash"] = False # Reset flash at the start of a new frame
 
         if current_mode == "RED":
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -108,9 +108,12 @@ def generate_frames():
 
             if motion_detected:
                 with state_lock:
-                    if game_state["total_time"] > 0:
-                        game_state["total_time"] = max(0, game_state["total_time"] - 5)
-                        game_state["penalty_flash"] = True
+                    current_time = time.time()
+                    if current_time - game_state["last_penalty_time"] > 1.0:
+                        if game_state["total_time"] > 0:
+                            game_state["total_time"] = max(0, game_state["total_time"] - 5)
+                            game_state["penalty_flash"] = True
+                            game_state["last_penalty_time"] = current_time
             
             previous_frame = gray
         else:
@@ -148,9 +151,14 @@ def video_feed():
 
 @app.route('/api/gamestate')
 def get_gamestate():
-    """API to get current game state."""
+    """API to get current game state and then reset the flash flag."""
     with state_lock:
-        return json.dumps(game_state)
+        # Copy the state to send before modifying it
+        state_to_send = game_state.copy()
+        # Reset the flash so it only fires once per event
+        if game_state["penalty_flash"]:
+            game_state["penalty_flash"] = False
+        return json.dumps(state_to_send)
 
 @app.route('/api/restart', methods=['POST'])
 def restart_game():
@@ -162,6 +170,7 @@ def restart_game():
             "total_time": 180,
             "interval_timer": 20,
             "penalty_flash": False,
+            "last_penalty_time": 0,
         }
     return json.dumps(game_state)
 
