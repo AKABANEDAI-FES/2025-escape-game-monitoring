@@ -5,21 +5,21 @@ import time
 import json
 import numpy as np
 from flask import Flask, render_template, Response
-
+from flask_cors import CORS 
 # --- Game State Variables ---
 game_state = {
     "mode": "GREEN",
     "total_time": 180,
     "interval_timer": 20,
     "penalty_flash": False,
-    "last_penalty_time": 0, # To manage penalty interval
+    "last_penalty_time": 1, # To manage penalty interval
 }
 state_lock = threading.Lock()
 
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
-
+CORS(app)
 # --- Background Thread for Game Logic ---
 def game_logic_thread():
     """
@@ -173,6 +173,28 @@ def restart_game():
             "last_penalty_time": 0,
         }
     return json.dumps(game_state)
+
+@app.route('/api/start', methods=['POST'])
+def start_game():
+    """API to start/restart the game."""
+    global game_state
+    with state_lock:
+        game_state = {
+            "mode": "GREEN",
+            "total_time": 180,
+            "interval_timer": 20,
+            "penalty_flash": False,
+            "last_penalty_time": 0,
+        }
+    return json.dumps({"status": "game started", "state": game_state})
+
+@app.route('/api/end', methods=['POST'])
+def end_game():
+    """API to end the game."""
+    global game_state
+    with state_lock:
+        game_state["mode"] = "GAME_OVER"
+    return json.dumps({"status": "game ended", "state": game_state})
 
 # --- Main Execution ---
 if __name__ == '__main__':
