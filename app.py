@@ -2,12 +2,14 @@ import cv2
 import threading
 import time
 import json
+import os
 import numpy as np
 from flask import Flask, render_template, Response, request
 from flask_cors import CORS
 
 # --- Configuration ---
 MOTION_THRESHOLD = 1000  # Sensitivity for motion detection. Higher value means less sensitive.
+CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))  # Camera device index (e.g. 0:/dev/video0, 2:/dev/video2)
 
 # --- Game State Variables ---
 game_state = {
@@ -28,11 +30,12 @@ def generate_frames():
     and yields frames as a multipart HTTP response.
     """
     global game_state
-    camera = cv2.VideoCapture(0)
+    print(f"Initializing camera with index {CAMERA_INDEX}...")
+    camera = cv2.VideoCapture(CAMERA_INDEX)
     try:
         camera_opened = camera.isOpened()
         if not camera_opened:
-            print("Warning: Could not start camera. Displaying a black screen instead.")
+            print(f"Warning: Could not start camera index {CAMERA_INDEX}. Displaying a black screen instead.")
 
         previous_frame = None
 
