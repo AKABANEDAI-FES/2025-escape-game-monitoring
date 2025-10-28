@@ -3,13 +3,22 @@ import threading
 import time
 import json
 import os
+import sys
 import numpy as np
 from flask import Flask, render_template, Response, request
 from flask_cors import CORS
 
 # --- Configuration ---
-MOTION_THRESHOLD = 1000  # Sensitivity for motion detection. Higher value means less sensitive.
+MOTION_THRESHOLD = 10000  # Sensitivity for motion detection. Higher value means less sensitive.
 CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))  # Camera device index (e.g. 0:/dev/video0, 2:/dev/video2)
+
+BACKEND_NAME = {
+    None: "DEFAULT",
+    cv2.CAP_ANY: "CAP_ANY",
+    cv2.CAP_DSHOW: "CAP_DSHOW",
+    cv2.CAP_MSMF: "CAP_MSMF",
+    cv2.CAP_V4L2: "CAP_V4L2",
+}
 
 # --- Game State Variables ---
 game_state = {
@@ -24,6 +33,53 @@ app = Flask(__name__)
 CORS(app)
 
 # --- Video Streaming and Motion Detection ---
+def open_camera():
+    """Attempt to open the camera using sensible backend defaults per platform."""
+    backend_candidates = []
+
+    explicit_backends = os.getenv("CAMERA_BACKENDS")
+    if explicit_backends:
+        name_to_backend = {name: const for const, name in BACKEND_NAME.items()}
+        for backend_name in explicit_backends.split(','):
+            backend_name = backend_name.strip().upper()
+            backend = name_to_backend.get(backend_name)
+            if backend is None and backend_name == "DEFAULT":
+                backend_candidates.append(None)
+            elif backend is not None:
+                backend_candidates.append(backend)
+            else:
+                print(f"Unknown backend '{backend_name}' in CAMERA_BACKENDS. Skipping.")
+    else:
+        if sys.platform.startswith("win"):
+            backend_candidates = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
+        elif sys.platform.startswith("linux"):
+            backend_candidates = [cv2.CAP_V4L2, cv2.CAP_ANY]
+        else:
+            backend_candidates = [cv2.CAP_ANY]
+
+        # Also try the library default if it differs from CAP_ANY
+        if None not in backend_candidates:
+            backend_candidates.append(None)
+
+    for backend in backend_candidates:
+        if backend is None:
+            camera = cv2.VideoCapture(CAMERA_INDEX)
+        else:
+            camera = cv2.VideoCapture(CAMERA_INDEX, backend)
+
+        if camera.isOpened():
+            backend_label = BACKEND_NAME.get(backend, str(backend))
+            print(f"Camera initialized with backend {backend_label} (index {CAMERA_INDEX}).")
+            return camera
+
+        backend_label = BACKEND_NAME.get(backend, str(backend))
+        print(f"Failed to open camera index {CAMERA_INDEX} with backend {backend_label}.")
+        camera.release()
+
+    print("Camera could not be initialized with any backend.")
+    return None
+
+
 def generate_frames():
     """
     Captures frames from the camera, performs motion detection if mode is RED,
@@ -31,9 +87,9 @@ def generate_frames():
     """
     global game_state
     print(f"Initializing camera with index {CAMERA_INDEX}...")
-    camera = cv2.VideoCapture(CAMERA_INDEX)
+    camera = open_camera()
     try:
-        camera_opened = camera.isOpened()
+        camera_opened = camera is not None and camera.isOpened()
         if not camera_opened:
             print(f"Warning: Could not start camera index {CAMERA_INDEX}. Displaying a black screen instead.")
 
@@ -103,7 +159,8 @@ def generate_frames():
             yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
                   bytearray(encodedImage) + b'\r\n')
     finally:
-        camera.release()
+        if camera is not None:
+            camera.release()
         print("Camera released.")
 
 # --- Flask Routes ---

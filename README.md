@@ -36,13 +36,13 @@ PCに接続されたWebカメラの映像を利用して遊ぶ、タイムアタ
     ターミナルまたはコマンドプロンプトを開き、任意のディレクトリで以下のコマンドを実行して、プロジェクトをダウンロードします。
 
     ```bash
-    git clone git@github.com:mikoto2726/dassyutu2025.git
+    git clone git@github.com:AKABANEDAI-FES/2025-escape-game-monitoring.git
     ```
 
 2.  **プロジェクトディレクトリに移動**
 
     ```bash
-    cd dassyutu2025
+    cd 2025-escape-game-monitoring
     ```
 
 3.  **Python仮想環境の作成と有効化**
@@ -83,6 +83,17 @@ PCに接続されたWebカメラの映像を利用して遊ぶ、タイムアタ
     [http://localhost:5000](http://localhost:5000)
 
     ゲーム画面が表示され、カメラへのアクセス許可を求められた場合は、許可してください。
+
+### カメラ接続時のヒント
+
+- `CAMERA_INDEX` 環境変数で利用するカメラ番号を変更できます（例: 外付けカメラが `1` の場合）。
+- Windows でカメラが起動しない場合は、以下のようにバックエンドを指定してアプリを再起動してください。
+  - コマンドプロンプト: `set CAMERA_BACKENDS=CAP_DSHOW`
+  - PowerShell: `$env:CAMERA_BACKENDS = 'CAP_DSHOW'`
+  - DirectShow が使用できない場合は `CAP_MSMF` に切り替えて試してください。
+- Windows の「プライバシーとセキュリティ > カメラ」で、"デスクトップ アプリ" を含むカメラアクセスが許可されていること、他のアプリが使用中でないことを確認してください。
+
+バックエンドを指定すると、アプリの起動時にコンソールへ選択されたバックエンドが表示されます。成功メッセージが表示されない場合は、別のバックエンドまたはカメラ番号を試してください。
 
 ## 5. 注意事項
 
