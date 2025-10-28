@@ -10,18 +10,13 @@
 
     <div class="container">
         <h1>だるまさんがころんだ</h1>
-        <div id="status-box">
-            <p>全体の残り時間: <span id="total-time-text">-</span>秒</p>
-            <p>現在の状態: <span id="status-text">読み込み中...</span> (<span id="interval-timer-text">-</span>秒)</p>
-        </div>
-        <div class="video-container">
-            <img src="{{ url_for('video_feed') }}" width="640" height="480">
-            <div id="penalty-text">-5s</div>
-        </div>
-        <div id="game-over-message" class="hidden">
+        <div id="game-status">現在の状態: <span id="mode">IDLE</span></div>
+               <div class="video-container">
+                   <img src="{{ url_for('video_feed') }}" width="640" height="480">
+               </div>
+               <div id="penalty-text" class="hidden">ペナルティ！</div>        <div id="game-over-message" class="hidden">
             <h2>ゲームオーバー！</h2>
-            <p>お疲れ様でした！</p>
-            <button id="restart-button">再スタート</button>
+            <button id="restart-button">リスタート</button>
         </div>
     </div>
 

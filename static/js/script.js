@@ -1,73 +1,112 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    const statusText = document.getElementById('status-text');
-    const totalTimeText = document.getElementById('total-time-text');
-    const intervalTimerText = document.getElementById('interval-timer-text');
+    const INTERVAL_DURATION_MS = 5000; // 5 seconds for GREEN/RED cycle
+
+    const modeText = document.getElementById('mode');
     const gameOverMessage = document.getElementById('game-over-message');
-    const gameOverText = gameOverMessage.querySelector('p'); // The paragraph inside the message div
     const restartButton = document.getElementById('restart-button');
     const penaltyText = document.getElementById('penalty-text');
     const body = document.body;
 
-    // Restart button logic
-    restartButton.addEventListener('click', async () => {
-        try {
-            const response = await fetch('/api/restart', { method: 'POST' });
-            if (!response.ok) {
-                throw new Error('Failed to restart the game');
-            }
-            // Hide the game over message and let the regular polling update the UI
-            gameOverMessage.classList.add('hidden');
-        } catch (error) {
-            console.error('Restart failed:', error);
-        }
-    });
+    let localTimer = null;
 
-    const updateState = async () => {
+    // --- API Functions ---
+
+    const setServerMode = async (mode) => {
+        try {
+            await fetch('/api/setmode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: mode }),
+            });
+        } catch (error) {
+            console.error(`Failed to set mode to ${mode}:`, error);
+        }
+    };
+
+    const restartGame = async () => {
+        try {
+            // This just tells the server to go into GREEN mode.
+            // The polling logic will then pick it up and start the timer.
+            await fetch('/api/start', { method: 'POST' });
+        } catch (error) {
+            console.error('Failed to restart game:', error);
+        }
+    };
+
+    // --- Timer Logic ---
+
+    function startIntervalTimer(currentMode) {
+        if (localTimer) return; // Timer is already running
+
+        let mode = currentMode;
+        
+        localTimer = setInterval(() => {
+            // This client takes responsibility for toggling the state
+            mode = mode === 'GREEN' ? 'RED' : 'GREEN';
+            setServerMode(mode);
+        }, INTERVAL_DURATION_MS);
+    }
+
+    function stopIntervalTimer() {
+        if (localTimer) {
+            clearInterval(localTimer);
+            localTimer = null;
+        }
+    }
+
+    // --- UI Update Logic ---
+
+    const updateStateFromServer = async () => {
         try {
             const response = await fetch('/api/gamestate');
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            const state = await response.json();
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const serverState = await response.json();
 
-            // Update text content
-            statusText.textContent = state.mode;
-            totalTimeText.textContent = state.total_time;
-            intervalTimerText.textContent = state.interval_timer;
+            modeText.textContent = serverState.mode;
+            body.classList.remove('green-bg', 'red-bg', 'game-over-bg', 'idle-bg');
 
-            // Update background color and game over message
-            body.classList.remove('green-bg', 'red-bg', 'game-over-bg');
-            gameOverMessage.classList.add('hidden');
-
-            if (state.mode === 'GREEN') {
-                body.classList.add('green-bg');
-            } else if (state.mode === 'RED') {
-                body.classList.add('red-bg');
-            } else if (state.mode === 'GAME_OVER') {
-                body.classList.add('game-over-bg');
-                gameOverText.textContent = `最終スコア: ${state.total_time}秒`; // Update with final score
-                gameOverMessage.classList.remove('hidden');
+            switch (serverState.mode) {
+                case 'GREEN':
+                case 'RED':
+                    body.classList.add(serverState.mode === 'GREEN' ? 'green-bg' : 'red-bg');
+                    gameOverMessage.classList.add('hidden');
+                    startIntervalTimer(serverState.mode); // Start the timer if game is active
+                    break;
+                case 'GAME_OVER':
+                    body.classList.add('game-over-bg');
+                    gameOverMessage.classList.remove('hidden');
+                    stopIntervalTimer();
+                    break;
+                default: // IDLE
+                    body.classList.add('idle-bg');
+                    gameOverMessage.classList.add('hidden');
+                    stopIntervalTimer();
+                    break;
             }
 
             // Handle penalty flash
-            if (state.penalty_flash) {
+            if (serverState.penalty_flash) {
                 body.classList.add('penalty-flash');
                 penaltyText.classList.add('show');
 
-                // Remove the class after the animation completes
                 setTimeout(() => {
                     body.classList.remove('penalty-flash');
                     penaltyText.classList.remove('show');
-                }, 1000); // Corresponds to the longer animation duration
+                }, 1000);
             }
 
         } catch (error) {
             console.error('Failed to fetch game state:', error);
-            statusText.textContent = '接続エラー';
+            modeText.textContent = '接続エラー';
         }
     };
 
-    // Update state every 500ms
-    setInterval(updateState, 500);
+    // --- Event Listeners ---
+    restartButton.addEventListener('click', restartGame);
+
+    // --- Initial Setup ---
+    setInterval(updateStateFromServer, 500); 
+    updateStateFromServer();
 });
