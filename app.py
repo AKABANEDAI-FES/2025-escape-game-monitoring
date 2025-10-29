@@ -218,4 +218,4 @@ def set_mode():
 if __name__ == '__main__':
     # For production, use a proper WSGI server like Gunicorn or uWSGI
     # Example: gunicorn --workers 4 --threads 100 --bind 0.0.0.0:5000 app:app
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=5000, ssl_context=("cert.pem", "key.pem"))
