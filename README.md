@@ -59,7 +59,7 @@ PCに接続されたWebカメラの映像を利用して遊ぶ、タイムアタ
       python -m venv .venv
       .\.venv\Scripts\activate
       ```
-
+      
 4.  **必要なライブラリをインストール**
 
     `requirements.txt` ファイルを使って、必要なPythonライブラリをインストールします。
@@ -68,7 +68,32 @@ PCに接続されたWebカメラの映像を利用して遊ぶ、タイムアタ
     pip install -r requirements.txt
     ```
 
-5.  **アプリケーションの起動**
+5. **ssl証明書を発行**
+    
+    ローカルでHTTPSを使用するために、自己署名証明書を発行します。以下のコマンドを実行してください。
+
+
+    ```bash
+    openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes
+    ```
+    
+    設問がいくつかあるので以下のように入力してください
+
+    ```python ip_address.py```を実行して、表示された２個目のIPアドレスを「Common Name」に入力してください。
+    ただし、httpsや後ろの':5000'は除いてください。
+    
+    
+    | 設問名                          | 入力内容              | 説明                       |
+    | ---------------------------- | ----------------- | ------------------------ |
+    | Country Name (2 letter code) | **JP**            | 日本の場合はJP                 |
+    | State or Province Name       | **Tokyo**         | 都道府県名（英語）                |
+    | Locality Name                | **Itabashi**      | 市区町村名                    |
+    | Organization Name            | **AkabanedaiFes** | 学祭や大学名                   |
+    | Organizational Unit Name     | **EscapeGame**    | 任意（空でもOK）                |
+    | Common Name                  | **19◯.16◯.◯.◯◯** | ← FlaskサーバーのIPアドレス（⚠️重要） |
+    | Email Address                | （空Enter）          | 入力不要                     |
+    
+6.  **アプリケーションの起動**
 
     以下のコマンドでWebサーバーを起動します。
 
@@ -76,13 +101,16 @@ PCに接続されたWebカメラの映像を利用して遊ぶ、タイムアタ
     python app.py
     ```
 
-6.  **ブラウザでアクセス**
+7.  **ブラウザでアクセス**
 
     Webブラウザを開き、以下のアドレスにアクセスしてください。
 
     [http://localhost:5000](http://localhost:5000)
 
     ゲーム画面が表示され、カメラへのアクセス許可を求められた場合は、許可してください。
+
+    スマホでアクセスする場合は、まずPCのローカルIPアドレスを使用してください（例: `http://192.168.x.x:5000`）。同じWi-Fiネットワークに接続されている必要があります。
+    その後に脱出ゲームのサイトを開いてください
 
 ### カメラ接続時のヒント
 
