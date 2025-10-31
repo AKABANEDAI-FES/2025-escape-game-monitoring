@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    const INTERVAL_DURATION_MS = 5000; // 5 seconds for GREEN/RED cycle
+    const INTERVAL_DURATION_MS = 5000;
 
     const modeText = document.getElementById('mode');
     const gameOverMessage = document.getElementById('game-over-message');
@@ -9,15 +9,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const body = document.body;
 
     let localTimer = null;
+    let lastMode = null;
+    let audioContextUnlocked = false; // 🔒 音声許可フラグ
 
-    // --- API Functions ---
+    // --- 音声再生 ---
+    const audio = new Audio('/static/sounds/attention.mp3');
 
+    function playAttentionSound() {
+        if (!audioContextUnlocked) {
+            console.warn('ユーザー操作前のため音声を再生できません');
+            return;
+        }
+        audio.currentTime = 0;
+        audio.play().catch(err => console.warn('音声再生エラー:', err));
+        setTimeout(() => {
+            audio.pause();
+            audio.currentTime = 0;
+        }, 4000);
+    }
+
+    // --- 初回クリックで音声再生を許可 ---
+    document.addEventListener('click', () => {
+        if (!audioContextUnlocked) {
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                audioContextUnlocked = true; // ✅ 許可完了
+                console.log('音声再生が許可されました');
+            }).catch(err => console.warn('音声初期化エラー:', err));
+        }
+    });
+
+    // --- 以下は既存のゲームロジック ---
     const setServerMode = async (mode) => {
         try {
             await fetch('/api/setmode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode: mode }),
+                body: JSON.stringify({ mode }),
             });
         } catch (error) {
             console.error(`Failed to set mode to ${mode}:`, error);
@@ -26,23 +55,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const restartGame = async () => {
         try {
-            // This just tells the server to go into GREEN mode.
-            // The polling logic will then pick it up and start the timer.
             await fetch('/api/start', { method: 'POST' });
         } catch (error) {
             console.error('Failed to restart game:', error);
         }
     };
 
-    // --- Timer Logic ---
-
     function startIntervalTimer(currentMode) {
-        if (localTimer) return; // Timer is already running
-
+        if (localTimer) return;
         let mode = currentMode;
-        
         localTimer = setInterval(() => {
-            // This client takes responsibility for toggling the state
             mode = mode === 'GREEN' ? 'RED' : 'GREEN';
             setServerMode(mode);
         }, INTERVAL_DURATION_MS);
@@ -55,13 +77,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- UI Update Logic ---
-
     const updateStateFromServer = async () => {
         try {
             const response = await fetch('/api/gamestate');
             if (!response.ok) throw new Error('Network response was not ok');
-            
+
             const serverState = await response.json();
 
             modeText.textContent = serverState.mode;
@@ -72,21 +92,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'RED':
                     body.classList.add(serverState.mode === 'GREEN' ? 'green-bg' : 'red-bg');
                     gameOverMessage.classList.add('hidden');
-                    startIntervalTimer(serverState.mode); // Start the timer if game is active
+                    startIntervalTimer(serverState.mode);
+
+                    if (serverState.mode === 'RED' && lastMode !== 'RED') {
+                        playAttentionSound();
+                    }
                     break;
+
                 case 'GAME_OVER':
                     body.classList.add('game-over-bg');
                     gameOverMessage.classList.remove('hidden');
                     stopIntervalTimer();
                     break;
-                default: // IDLE
+
+                default:
                     body.classList.add('idle-bg');
                     gameOverMessage.classList.add('hidden');
                     stopIntervalTimer();
                     break;
             }
 
-            // Handle penalty flash
             if (serverState.penalty_flash) {
                 body.classList.add('penalty-flash');
                 penaltyText.classList.add('show');
@@ -97,16 +122,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 1000);
             }
 
+            lastMode = serverState.mode;
+
         } catch (error) {
             console.error('Failed to fetch game state:', error);
             modeText.textContent = '接続エラー';
         }
     };
 
-    // --- Event Listeners ---
     restartButton.addEventListener('click', restartGame);
-
-    // --- Initial Setup ---
-    setInterval(updateStateFromServer, 500); 
+    setInterval(updateStateFromServer, 500);
     updateStateFromServer();
 });
