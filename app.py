@@ -9,7 +9,7 @@ from flask import Flask, render_template, Response, request
 from flask_cors import CORS
 
 # --- Configuration ---
-MOTION_THRESHOLD = 100  # Sensitivity for motion detection. Higher value means less sensitive.
+MOTION_THRESHOLD = 1000  # Sensitivity for motion detection. Higher value means less sensitive.
 CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))  # Camera device index (e.g. 0:/dev/video0, 2:/dev/video2)
 
 BACKEND_NAME = {
