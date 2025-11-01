@@ -2,9 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const INTERVAL_DURATION_MS = 5000; // 5 seconds for GREEN/RED cycle
 
-    const modeText = document.getElementById('mode');
     const gameOverMessage = document.getElementById('game-over-message');
-    const restartButton = document.getElementById('restart-button');
     const penaltyText = document.getElementById('penalty-text');
     const idleButton = document.getElementById('idle-button');
     const body = document.body;
@@ -22,16 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } catch (error) {
             console.error(`Failed to set mode to ${mode}:`, error);
-        }
-    };
-
-    const restartGame = async () => {
-        try {
-            // This just tells the server to go into GREEN mode.
-            // The polling logic will then pick it up and start the timer.
-            await fetch('/api/start', { method: 'POST' });
-        } catch (error) {
-            console.error('Failed to restart game:', error);
         }
     };
 
@@ -65,7 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const serverState = await response.json();
 
-            modeText.textContent = serverState.mode;
             body.classList.remove('green-bg', 'red-bg', 'game-over-bg', 'idle-bg');
 
             switch (serverState.mode) {
@@ -100,12 +87,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         } catch (error) {
             console.error('Failed to fetch game state:', error);
-            modeText.textContent = '接続エラー';
+            console.error('Failed to fetch game state:', error);
         }
     };
 
     // --- Event Listeners ---
-    restartButton.addEventListener('click', restartGame);
     idleButton.addEventListener('click', () => {
         stopIntervalTimer();
         setServerMode('IDLE');

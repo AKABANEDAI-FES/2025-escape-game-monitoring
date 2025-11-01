@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>だるまさんがころんだ</title>
+    <title>幽霊が監視中</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <button id="idle-button" type="button">IDLE</button>
 
     <div class="container">
-        <h1>だるまさんがころんだ</h1>
-        <div id="game-status">現在の状態: <span id="mode">IDLE</span></div>
-               <div class="video-container">
-                   <img src="{{ url_for('video_feed') }}" width="640" height="480">
-               </div>
-               <div id="penalty-text" class="hidden">ペナルティ！</div>        <div id="game-over-message" class="hidden">
-            <h2>ゲームオーバー！</h2>
-            <button id="restart-button">リスタート</button>
+        <h1>幽霊が監視中</h1>
+        <div class="video-container">
+            <img src="{{ url_for('video_feed') }}" width="640" height="480">
+        </div>
+        <div id="penalty-text" class="hidden">ペナルティ！</div>
+        <div id="game-over-message" class="hidden">
+            <h2>システム停止</h2>
         </div>
     </div>
 
