@@ -146,9 +146,6 @@ def generate_frames():
                 display_mode = game_state["mode"]
                 last_penalty = game_state.get("last_penalty_time", 0)
 
-            color = {"GREEN": (0, 255, 0), "RED": (0, 0, 255), "GAME_OVER": (0, 255, 255), "IDLE": (255, 255, 255)}.get(display_mode, (255, 255, 255))
-            cv2.putText(frame, f"MODE: {display_mode}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-            
             if time.time() - last_penalty < 1.0:
                 cv2.putText(frame, "MOTION DETECTED!", (120, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)
 
