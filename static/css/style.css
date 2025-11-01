@@ -7,6 +7,32 @@ body {
     line-height: 1.6;
 }
 
+#idle-button {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: transparent;
+    background-color: transparent;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    z-index: 200;
+}
+
+#idle-button:hover,
+#idle-button:focus,
+#idle-button:active {
+    background-color: transparent;
+    transform: none;
+}
+
 .container {
     width: 95%;
     max-width: 1200px; /* Increased max-width for larger screens */
