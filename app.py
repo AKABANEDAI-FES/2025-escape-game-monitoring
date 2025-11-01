@@ -208,9 +208,14 @@ def set_mode():
         return json.dumps({"status": "error", "message": "Invalid JSON"}), 400
         
     new_mode = data.get("mode")
-    if new_mode in ["GREEN", "RED"]:
+    valid_modes = {"GREEN", "RED", "IDLE"}
+
+    if new_mode in valid_modes:
         with state_lock:
             game_state["mode"] = new_mode
+            if new_mode == "IDLE":
+                game_state["penalty_flash"] = False
+                game_state["last_penalty_time"] = 0
         return json.dumps({"status": "success", "new_mode": new_mode})
     return json.dumps({"status": "error", "message": "Invalid mode"}), 400
 

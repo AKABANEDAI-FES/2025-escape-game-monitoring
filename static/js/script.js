@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const gameOverMessage = document.getElementById('game-over-message');
     const restartButton = document.getElementById('restart-button');
     const penaltyText = document.getElementById('penalty-text');
+    const idleButton = document.getElementById('idle-button');
     const body = document.body;
 
     let localTimer = null;
@@ -105,6 +106,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Event Listeners ---
     restartButton.addEventListener('click', restartGame);
+    idleButton.addEventListener('click', () => {
+        stopIntervalTimer();
+        setServerMode('IDLE');
+    });
 
     // --- Initial Setup ---
     setInterval(updateStateFromServer, 500); 
